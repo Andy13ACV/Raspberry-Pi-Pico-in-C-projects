@@ -6,3 +6,5 @@ Debe habilitar el uso de las siguientes librerías para permitir el uso de la li
 1. #include <stdio.h>
 2. #include "pico/stdlib.h"
 3. #include "hardware/i2c.h" 
+
+Deberá añadir #include "myI2CLCD.h" para que funcione correctamente la biblioteca, anteriormente debió añadir el .c y .h en el CMakeLists.txt para evitar errores al compilar el proyecto.
