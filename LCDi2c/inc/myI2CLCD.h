@@ -19,6 +19,7 @@
 */
 typedef struct{
     i2c_inst_t *puertoI2C; /**< Puerto I2C.*/
+    uint8_t backlight;
     uint8_t scl; /**< Pin scl.*/
     uint8_t sda; /**< Pin sda.*/
     uint8_t dirI2C; /**< Dirección de la pantalla I2C.*/
@@ -232,6 +233,31 @@ void functionSet(uint8_t comando);
  * 
  * @param NoCGRAM Dirección de la CGRAM a grabar 
  * @param figura matriz que contiene la figura 
+ * @param tamFigura tamaño de la matriz para verificar que su tamaño es correcto
 */
-
 uint8_t caracterPersonalizado(uint8_t NoCGRAM, uint8_t *figura, size_t tamFigura);
+
+
+/**
+ * @brief Encender la backlight
+ * 
+ * Prender el backlight de la LCD
+ * 
+ */
+void backlight_on();
+
+/**
+ * @brief Apagar la backlight
+ * 
+ * Apagar el backlight de la LCD
+ * 
+ */
+void backlight_off();
+
+/**
+ * @brief Posicionar el cursor mediante coordenadas x, y.
+ * 
+ * @param x posición en x
+ * @param y posición en y
+ */
+void cursorPosicion(uint8_t x, uint8_t y);
