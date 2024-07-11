@@ -18,6 +18,7 @@ void LCDinit(i2c_inst_t *i2c, uint8_t scl, uint8_t sda, uint16_t veltrans, uint8
     myLCD.dirI2C = dirI2C;
     myLCD.tiempo = veltrans;
     myLCD.posFinal = 0;
+	myLCD.backlight = 0;
 
     // Configuración del puerto por I2.
     i2c_init(myLCD.puertoI2C, myLCD.tiempo*1000);
@@ -66,24 +67,23 @@ static void saludo(){
 static void enviaCMD(char dato){
 	char cmdEnviado;
 	const uint8_t mascara = 0xF0;
-
 	// Enviar nibble alto 
-	cmdEnviado = (dato & mascara);
+	cmdEnviado = (dato & mascara) | myLCD.backlight;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &cmdEnviado, 1, false);
 	cmdEnviado = 0x04 | cmdEnviado;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &cmdEnviado, 1, false);
 	sleep_ms(3);
-	cmdEnviado = 0xF0 & cmdEnviado;
+	cmdEnviado = 0xF0 & cmdEnviado | myLCD.backlight;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &cmdEnviado, 1, false);
 	sleep_ms(10);
 
 	// Enviar nibble bajo
-	cmdEnviado = ((dato << 4) & mascara);
+	cmdEnviado = ((dato << 4) & mascara) | myLCD.backlight;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &cmdEnviado, 1, false);
 	cmdEnviado = 0x04 | cmdEnviado;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &cmdEnviado, 1, false);
 	sleep_ms(3);
-	cmdEnviado = 0xF0 & cmdEnviado;
+	cmdEnviado = 0xF0 & cmdEnviado | myLCD.backlight;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &cmdEnviado, 1, false);
 	sleep_ms(10);
 }
@@ -91,27 +91,27 @@ static void enviaCMD(char dato){
 void enviaDato(char dato){
 	char enviarDato; 
 	const uint8_t mascara = 0xF0;
-
+	
 	// enviar el nibble alto
-	enviarDato = (dato & mascara);
+	enviarDato = (dato & mascara) | myLCD.backlight;
 	enviarDato |=  0x01;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enviarDato, 1, false);
 	enviarDato |= 0x04;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enviarDato, 1, false);
 	sleep_ms(3);
-	enviarDato &= 0xFB;
+	enviarDato &= 0xFB | myLCD.backlight;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enviarDato, 1, false);
 	sleep_ms(10);
 	
 	// enviar el nibble bajo 
-	enviarDato = ((dato << 4) & mascara);
+	enviarDato = ((dato << 4) & mascara) | myLCD.backlight;
 	enviarDato |= 0x01;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enviarDato, 1, false);
 	sleep_ms(3);
 	enviarDato |= 0x04;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enviarDato, 1, false);
 	sleep_ms(3);
-	enviarDato &= 0xFB;
+	enviarDato &= 0xFB | myLCD.backlight;
 	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enviarDato, 1, false);	
 	sleep_ms(10);
     
@@ -138,8 +138,10 @@ void limpiaLCD(){
 
 void dirDDRAM(uint8_t dir){
 	// Permite cambiarse de posición usando las direcciones empleadas por el LCD
-    uint8_t linea1 = (dir >= 0 && dir <= 0x27);
-    uint8_t linea2 = (dir >= 0x40 && dir <= 0x67);
+    const uint8_t PosicionInicial[] = {0x00, 0x40};
+	const uint8_t PosicionFinal[] = {0x27, 0x67};
+	uint8_t linea1 = (dir >= PosicionInicial[0] && dir <= PosicionFinal[0]);
+    uint8_t linea2 = (dir >= PosicionInicial[1] && dir <= PosicionFinal[1]);
     uint8_t comando = 0x80;
 
     if(linea1 || linea2){
@@ -208,16 +210,48 @@ uint8_t caracterPersonalizado(uint8_t NoCGRAM, uint8_t *figura, size_t tamFigura
     }
 
     if(tamFigura == tamMax){
-        enviaCMD(CGRAM_ACCESO + (NoCGRAM*8));     
+        enviaCMD(CGRAM_ACCESO + (NoCGRAM*elementos));     
         sleep_ms(1);
         for(uint8_t i = 0 ; i < elementos ; i++){
             enviaDato(figura[i]);
             sleep_ms(1);
         }
+		//sleep_ms(5);
         return 1;
 
     }else{
         return 0;
     }
     
+}
+
+void backlight_on(){
+	// encender backlight
+	const uint8_t enciende = 0x08;
+	myLCD.backlight = enciende;
+	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &enciende, 1, false);
+}
+
+void backlight_off(){
+	// apagar backlight 
+	const uint8_t apaga = 0x00;
+	myLCD.backlight = apaga;
+	i2c_write_blocking(myLCD.puertoI2C, myLCD.dirI2C, &apaga, 1, false);
+}
+
+
+void cursorPosicion(uint8_t x, uint8_t y){
+	const uint8_t cursorInicio[] = {0x00, 0x40, 0x14, 0x54};
+	const uint8_t comando = 0x80;
+
+	// excede la posición en y o x
+	if(y >= 4 || x >= 16){
+		return;
+	}
+
+	// obten la posición 
+	uint8_t posicionFinal = cursorInicio[y] + x;
+	enviaCMD(comando | posicionFinal);
+	myLCD.posFinal = posicionFinal;
+
 }
